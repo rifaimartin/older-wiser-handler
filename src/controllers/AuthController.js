@@ -1,92 +1,297 @@
-const User = require('../models/User');
-const ResponseFormatter = require('../utils/ResponseFormatter');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken'); 
-const config = require('../config/config'); 
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const { jwtSecret, jwtExpire } = require('../config/config');
 
 class AuthController {
-  static async register(req, res) {
-    try {
-      const { name, email, password } = req.body;
-
-      // Check if user already exists
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return ResponseFormatter.error(res, 'Email already registered', 400);
-      }
-
-      // Create new user
-      const user = new User({
-        name,
-        email,
-        password,
-      });
-
-      await user.save();
-
-      // Remove password from response
-      const userResponse = {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      };
-
-      return ResponseFormatter.success(res, 'Registration successful', userResponse, 201);
-    } catch (error) {
-      return ResponseFormatter.error(res, error.message);
-    }
-  }
-
   static async login(req, res) {
     try {
       const { email, password } = req.body;
 
-      // Check if user exists
+      // Find user
       const user = await User.findOne({ email });
       if (!user) {
         return res.status(401).json({
-          status: 'error',
-          message: 'Invalid email or password'
+          success: false,
+          message: 'Invalid credentials'
         });
       }
 
-      // Verify password
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
+      // Check password
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
         return res.status(401).json({
-          status: 'error',
-          message: 'Invalid email or password'
+          success: false,
+          message: 'Invalid credentials'
         });
       }
 
-      // Generate JWT token
+      // Generate token
       const token = jwt.sign(
-        { userId: user._id },
-        config.jwtSecret,
-        { expiresIn: '24h' }
+        { id: user._id },
+        jwtSecret,
+        { expiresIn: jwtExpire }
       );
 
-      // Return user data and token
-      return res.json({
-        status: 'success',
-        message: 'Login successful',
+      res.json({
+        success: true,
         data: {
+          token,
           user: {
             id: user._id,
             name: user.name,
-            email: user.email
-          },
-          token
+            email: user.email,
+            role: user.role,
+            imageUrl: user.imageUrl,
+            settings: user.settings
+          }
         }
       });
+
     } catch (error) {
-      return res.status(500).json({
-        status: 'error',
-        message: error.message
+      console.error('Login error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
       });
     }
   }
 
+  static async register(req, res) {
+    try {
+      const { name, email, password } = req.body;
+
+      // Check if user exists
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email already exists'
+        });
+      }
+
+      // Create new user
+      const user = await User.create({
+        name,
+        email,
+        password
+      });
+
+      // Generate token
+      const token = jwt.sign(
+        { id: user._id },
+        jwtSecret,
+        { expiresIn: jwtExpire }
+      );
+
+      res.status(201).json({
+        success: true,
+        data: {
+          token,
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Register error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  static async getProfile(req, res) {
+    try {
+      const { email } = req.query;
+      
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is required'
+        });
+      }
+
+      const user = await User.findOne({ email })
+        .select('-password')
+        .lean();
+      
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      const userProfile = {
+        personalInfo: {
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          imageUrl: user.imageUrl,
+          role: user.role
+        },
+        settings: user.settings,
+        timestamps: {
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        }
+      };
+
+      res.json({
+        success: true,
+        data: userProfile
+      });
+
+    } catch (error) {
+      console.error('Get profile error:', error);
+      res.status(500).json({
+        success: false, 
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  static async getMyProfile(req, res) {
+    try {
+      const { id } = req.user;
+      
+      const user = await User.findById(id)
+        .select('-password')
+        .lean();
+      
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      const userProfile = {
+        personalInfo: {
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          imageUrl: user.imageUrl,
+          role: user.role
+        },
+        settings: user.settings,
+        timestamps: {
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt
+        }
+      };
+
+      res.json({
+        success: true,
+        data: userProfile
+      });
+
+    } catch (error) {
+      console.error('Get my profile error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  static async updateProfile(req, res) {
+    try {
+      const { name, email, phone } = req.body;
+      
+      // Cari user berdasarkan email
+      let user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+      
+      // Handle image upload jika ada file
+      let imageUrl;
+      if (req.file) {
+        imageUrl = `/uploads/${req.file.filename}`;
+      }
+
+      // Prepare update data
+      const updateData = {
+        name,
+        phone,
+        ...(imageUrl && { imageUrl }),
+        updatedAt: Date.now()
+      };
+
+      // Update user dan return updated document
+      const updatedUser = await User.findOneAndUpdate(
+        { email }, // Query by email
+        updateData,
+        { new: true, runValidators: true }
+      ).select('-password');
+
+      res.json({
+        success: true,
+        data: updatedUser
+      });
+
+    } catch (error) {
+      console.error('Update profile error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  static async updateSettings(req, res) {
+    try {
+      const { id } = req.user;
+      const { theme, language, region } = req.body;
+
+      const user = await User.findByIdAndUpdate(
+        id,
+        {
+          'settings.theme': theme,
+          'settings.language': language,
+          'settings.region': region,
+          updatedAt: Date.now()
+        },
+        { new: true, runValidators: true }
+      ).select('-password');
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: user
+      });
+
+    } catch (error) {
+      console.error('Update settings error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  // Bisa ditambahkan method lain seperti:
+  // - changePassword
+  // - forgotPassword
+  // - resetPassword
+  // - verifyEmail
+  // dll
 }
 
 module.exports = AuthController;
