@@ -13,73 +13,34 @@ Backend service for OLDERWISER platform, built with Express.js and MongoDB.
 ## Tech Stack
 
 - Node.js
-- Express.js
+- Express.js 
 - MongoDB with Mongoose
 - JWT Authentication
 - Multer for File Upload
 - Winston for Logging
 
-## Project Structure
-older-wiser-handler/
-├── src/
-│   ├── config/
-│   │   ├── config.js          # Configuration settings
-│   │   ├── database.js        # Database connection
-│   │   └── multerConfig.js    # File upload config
-│   │
-│   ├── controllers/
-│   │   ├── ActivityController.js
-│   │   ├── AuthController.js
-│   │   └── CaptchaController.js
-│   │
-│   ├── middlewares/
-│   │   ├── auth.js           # JWT authentication
-│   │   └── errorHandler.js    # Global error handler
-│   │
-│   ├── models/
-│   │   ├── Activity.js
-│   │   └── User.js
-│   │
-│   ├── routes/
-│   │   ├── activity.routes.js
-│   │   ├── auth.routes.js
-│   │   └── index.js
-│   │
-│   └── utils/
-│       └── logger.js         # Winston logger setup
-│
-├── uploads/                  # Upload directory
-│   ├── activities/          # Activity images
-│   └── avatars/            # User avatars
-│
-├── .env                     # Environment variables
-├── .env.example            # Environment template
-├── .gitignore
-├── package.json
-└── server.js               # Entry point
-Copy
 ## API Endpoints
 
 ### Authentication
 POST /api/auth/register     # Register new user
 POST /api/auth/login        # Login user
 POST /api/auth/verify-email # Verify email address
-Copy
+
 ### Activities
 GET    /api/activities           # Get all activities
 POST   /api/activities/create    # Create new activity
 GET    /api/activities/:id       # Get activity by ID
 PUT    /api/activities/:id       # Update activity
 DELETE /api/activities/:id       # Delete activity
-Copy
+
 ### Users
 GET    /api/users/me        # Get current user
 PUT    /api/users/profile   # Update user profile
-Copy
+
 ### Files
 POST   /api/activities/upload    # Upload activity image
 POST   /api/users/avatar        # Upload user avatar
-Copy
+
 ## Environment Variables
 
 Create `.env` file in root directory:
@@ -101,19 +62,19 @@ Installation & Setup
 
 Install dependencies
 
-bashCopynpm install
+npm install
 
 Create .env file
 
-bashCopycp .env.example .env
+cp .env.example .env
 
 Create upload directories
 
-bashCopymkdir -p uploads/activities uploads/avatars
+mkdir -p uploads/activities uploads/avatars
 
 Run development server
 
-bashCopynpm run dev
+npm run dev
 Contributing
 
 Fork the repository
