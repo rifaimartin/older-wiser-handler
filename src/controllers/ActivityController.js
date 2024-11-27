@@ -5,6 +5,7 @@ const User = require('../models/User');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const logger = require('../utils/logger');
 
 
 // Ensure upload directory exists
@@ -74,6 +75,8 @@ class ActivityController {
     }
   }
 
+  
+
   // Create activity handler
   static async createActivity(req, res) {
     try {
@@ -83,55 +86,136 @@ class ActivityController {
         duration,
         category,
         description,
-        difficulty = 'Beginner',
+        difficulty = 'Beginner', 
         materials = [],
         steps = [],
-        email
+        images,
       } = req.body;
 
-      // Find user
-      const user = await User.findOne({ email });
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid credentials'
+      // Ambil email langsung dari req.user (tidak perlu destructuring)
+      const email = req.user.email;
+
+      logger.info('Creating new activity', {
+        email,
+        title,
+        category,
+        user: req.user // log full user object untuk debug
+      });
+
+      // Find user (technically tidak perlu find lagi karena sudah ada di req.user)
+      const user = {
+        _id: req.user.id,
+        email: req.user.email
+      };
+
+      logger.debug('User data:', user);
+
+      // Parse arrays if needed
+      let parsedMaterials = materials;
+      let parsedSteps = steps;
+      try {
+        if (typeof materials === 'string') {
+          parsedMaterials = JSON.parse(materials);
+          logger.debug('Parsed materials array', { materials: parsedMaterials });
+        }
+        if (typeof steps === 'string') {
+          parsedSteps = JSON.parse(steps);
+          logger.debug('Parsed steps array', { steps: parsedSteps });
+        }
+      } catch (err) {
+        logger.error('Error parsing arrays', {
+          error: err.message,
+          materials,
+          steps
         });
       }
-
-      console.log(user._id + "apaan cuy")
 
       // Create new activity
       const activity = await Activity.create({
         title,
         image,
+        images,
         duration,
         category,
         description,
         difficulty,
-        materials: typeof materials === 'string' ? JSON.parse(materials) : materials,
-        steps: typeof steps === 'string' ? JSON.parse(steps) : steps,
-        email,
-        createdBy: user._id
+        materials: parsedMaterials,
+        steps: parsedSteps,
+        email: user.email,      // Use email from req.user
+        createdBy: user._id     // Use id from req.user
+      });
+
+      logger.info('Activity created successfully', {
+        activityId: activity._id,
+        userId: user._id,
+        title: activity.title
       });
 
       res.status(201).json({
         success: true,
-        message: 'Activity created successfully jacnok',
+        message: 'Activity created successfully',
         data: activity
       });
 
     } catch (error) {
-      console.error('Create activity error:', error);
+      logger.error('Create activity error:', {
+        error: error.message,
+        stack: error.stack,
+        body: req.body,
+        user: req.user
+      });
+
       if (error.name === 'ValidationError') {
+        logger.warn('Validation error', {
+          errors: error.errors,
+          body: req.body
+        });
+
         return res.status(400).json({
           success: false,
           message: 'Validation Error',
           errors: error.errors
         });
       }
+
       res.status(500).json({
         success: false,
         message: 'Internal server error'
+      });
+    }
+  }
+
+  static async bulkUpload(req, res) {
+    try {
+      upload(req, res, async (err) => {
+        if (err) {
+          return res.status(400).json({
+            success: false,
+            message: err.message
+          });
+        }
+  
+        if (!req.file) {
+          return res.status(400).json({
+            success: false,
+            message: 'Please upload an image'
+          });
+        }
+  
+        const imagePath = `/uploads/activities/${req.file.filename}`;
+  
+        res.json({
+          success: true,
+          data: {
+            path: imagePath
+          }
+        });
+      });
+    } catch (error) {
+      logger.error('Upload error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error uploading file'
       });
     }
   }

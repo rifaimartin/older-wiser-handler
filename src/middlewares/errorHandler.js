@@ -1,17 +1,19 @@
-const ResponseFormatter = require('../utils/ResponseFormatter');
+const logger = require('../utils/logger');
 
-const errorHandler = (err, req, res, next) => {
-  console.error(err.stack);
+module.exports = (err, req, res, next) => {
+  logger.error('Error:', {
+    error: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    body: req.body,
+    query: req.query,
+    params: req.params,
+    user: req.user?.id
+  });
 
-  if (err.name === 'ValidationError') {
-    return ResponseFormatter.error(res, 'Validation Error', 400, err.errors);
-  }
-
-  if (err.name === 'CastError') {
-    return ResponseFormatter.error(res, 'Invalid ID', 400);
-  }
-
-  return ResponseFormatter.error(res, err.message || 'Internal Server Error', err.statusCode || 500);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error'
+  });
 };
-
-module.exports = errorHandler;

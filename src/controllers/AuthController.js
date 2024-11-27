@@ -42,6 +42,7 @@ class AuthController {
             name: user.name,
             email: user.email,
             role: user.role,
+            membershipLevel: user.membershipLevel,
             imageUrl: user.imageUrl,
             settings: user.settings
           }
@@ -53,6 +54,42 @@ class AuthController {
       res.status(500).json({
         success: false,
         message: 'Internal server error'
+      });
+    }
+  }
+
+  static async upgradeMembership(req, res) {
+    try {
+      const { id } = req.user;
+      const { membershipLevel, membershipExpiry } = req.body;
+  
+      const user = await User.findByIdAndUpdate(
+        id,
+        {
+          membershipLevel,
+          membershipExpiry,
+          updatedAt: Date.now()
+        },
+        { new: true }
+      ).select('-password');
+  
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+  
+      res.json({
+        success: true,
+        data: user
+      });
+  
+    } catch (error) {
+      console.error('Upgrade membership error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to upgrade membership'
       });
     }
   }
@@ -74,6 +111,7 @@ class AuthController {
       const user = await User.create({
         name,
         email,
+        role: "user",
         password
       });
 
@@ -156,7 +194,6 @@ class AuthController {
       });
     }
   }
-
   static async getMyProfile(req, res) {
     try {
       const { id } = req.user;

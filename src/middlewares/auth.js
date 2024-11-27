@@ -63,22 +63,34 @@ const auth = async (req, res, next) => {
 };
 
 // Optional: Admin only middleware
-const adminOnly = async (req, res, next) => {
- try {
-   if (req.user.role !== 'admin') {
-     return res.status(403).json({
-       success: false,
-       message: 'Access denied. Admin only.'
-     });
-   }
-   next();
- } catch (error) {
-   console.error('Admin middleware error:', error);
-   res.status(500).json({
-     success: false,
-     message: 'Server Error'
-   });
- }
+const adminAuth = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Authorization denied' 
+      });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.id);
+
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Access denied. Admin only.' 
+      });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(401).json({ 
+      success: false,
+      message: 'Token is not valid' 
+    });
+  }
 };
 
 // Optional: Role-based middleware
@@ -96,6 +108,6 @@ const checkRole = (roles) => {
 
 module.exports = {
  auth,
- adminOnly,
+ adminAuth,
  checkRole
 };

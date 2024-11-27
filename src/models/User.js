@@ -12,6 +12,15 @@ const userSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
   },
+  membershipLevel: {
+    type: String,
+    enum: ['free', 'premium', 'gold'],
+    default: 'free'
+  },
+  membershipExpiry: {
+    type: Date,
+    default: null
+  },
   password: {
     type: String,
     required: true,

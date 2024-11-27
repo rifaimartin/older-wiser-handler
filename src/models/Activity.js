@@ -8,11 +8,15 @@ const activitySchema = new mongoose.Schema({
   },
   image: {
     type: String,
-    required: true
+    // required: true
   },
+  images: [{
+    type: String,  // untuk menyimpan path file
+    required: false
+  }],
   duration: {
     type: String,
-    required: true
+    // required: true
   },
   email: {
     type: String,

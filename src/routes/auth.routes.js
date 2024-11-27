@@ -10,6 +10,8 @@ router.post('/update-profile',  upload.single('avatar'), AuthController.updatePr
 router.post('/update-settings',  AuthController.updateSettings);
 router.get('/profile', AuthController.getProfile);
 
+router.post('/upgrade-membership', auth, AuthController.upgradeMembership);
+
 router.get('/me', auth, AuthController.getMyProfile);
 
 module.exports = router;
