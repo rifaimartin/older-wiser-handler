@@ -10,11 +10,11 @@ const activitySchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  email: {
+  duration: {
     type: String,
     required: true
   },
-  duration: {
+  email: {
     type: String,
     required: true
   },
@@ -43,10 +43,12 @@ const activitySchema = new mongoose.Schema({
     default: true
   },
   createdBy: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
   },
   likes: [{
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }],
   createdAt: {
     type: Date,

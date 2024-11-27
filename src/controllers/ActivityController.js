@@ -138,16 +138,69 @@ class ActivityController {
 
   static async getUserCreatedActivities(req, res) {
     try {
+      console.log('Fetching user created activities...');
+      
       const activities = await Activity.find({ isUserCreated: true })
-        .populate('createdBy', 'name imageUrl')
+        .populate({
+          path: 'createdBy',
+          select: 'name email imageUrl' // pilih fields yang dibutuhkan dari User
+        })
         .sort({ createdAt: -1 });
+  
+      // console.log('Found activities:', activities);
+  
+      // Transform response jika perlu
+      const formattedActivities = activities.map(activity => ({
+        id: activity._id,
+        title: activity.title,
+        image: activity.image,
+        duration: activity.duration,
+        category: activity.category,
+        description: activity.description,
+        difficulty: activity.difficulty,
+        materials: activity.materials,
+        steps: activity.steps,
+        createdBy: {
+          id: activity.createdBy?._id,
+          name: activity.createdBy?.name || 'Anonymous',
+          email: activity.createdBy?.email,
+          imageUrl: activity.createdBy?.imageUrl
+        },
+        likes: activity.likes,
+        createdAt: activity.createdAt,
+        updatedAt: activity.updatedAt
+      }));
+  
+      res.json({
+        success: true,
+        data: formattedActivities
+      });
+    } catch (error) {
+      console.error('Get user created activities error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
 
+  static async getUserActivities(req, res) {
+    try {
+      const { email } = req.params;
+      
+      const activities = await Activity.find({ 
+        email: email,
+        isUserCreated: true 
+      })
+      .sort('-createdAt')
+      .select('title category image');
+  
       res.json({
         success: true,
         data: activities
       });
     } catch (error) {
-      console.error('Get user created activities error:', error);
+      console.error('Get user activities error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error'
@@ -166,45 +219,11 @@ class ActivityController {
     }
   }
 
-  static async getUserCreatedActivities(req, res) {
-    try {
-      const activities = await Activity.find({ isUserCreated: true })
-        .populate('createdBy', 'name imageUrl')
-        .sort({ createdAt: -1 });
-
-      const formattedActivities = activities.map(activity => ({
-        id: activity._id,
-        title: activity.title,
-        image: activity.image,
-        duration: activity.duration,
-        category: activity.category,
-        createdBy: {
-          name: activity.createdBy?.name || 'Anonymous',
-          imageUrl: activity.createdBy?.imageUrl
-        },
-        likes: activity.likes?.length || 0,
-        description: activity.description,
-        createdAt: activity.createdAt
-      }));
-
-      res.json({
-        success: true,
-        data: formattedActivities
-      });
-    } catch (error) {
-      console.error('Get user created activities error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Internal server error'
-      });
-    }
-  }
-
   static async getActivityById(req, res, next) {
     try {
       const activity = await ActivityService.getActivityById(req.params.id);
       if (!activity) {
-        return ResponseFormatter.error(res, 'Activity not found', 404);
+        return ResponseFormatter.error(res, 'Activity not found jancok', 404);
       }
       return ResponseFormatter.success(res, activity, 'Activity retrieved successfully');
     } catch (error) {
